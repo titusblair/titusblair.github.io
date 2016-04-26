@@ -11,27 +11,56 @@
         padding: 5px;
       }
       audio {
-        display: block;
+        width: 400px;
       }
-      #soundtrack1, #soundtrack2 {
-        font-family: Arial;
-        font-weight: bolder;
-        background-color: white;
-        padding: 8px;
-        display: inline-block;
-        border: 1px solid black;
+      .tracklist {
+        font-size: 14px;
+        padding: 10px;
+        border: 5px solid black;
+        width: 410px;
+        margin: 5px;
+      }
+      .green {
+        border: 5px solid rgb(50,255,50);
+        background-color: rgb(50,255,50);
+      }
+      .red {
+        border: 5px solid rgb(255,50,50);
+        background-color: rgb(255,50,50);
       }
     </style> 
   </head>
   <body>
   <center>
   <div>
-    <div id="tools"></div>
-    <div id="player"></div>
+    <div id="tools">
+      <button id="playAll">Play All</button>
+      <button id="filter">Filter</button>
+      <button id="xray">Xray</button>
+    </div>
+
+    <div id="player">
+    <form>
+
+      <select id="track1source" name="track1source" class="tracklist green"> 
+        <option value="sounds/singing.wav">WAV</option>            
+      </select>
+      <br/>
+      <audio id="track1" class="green" controls="controls"></audio>
+      <br/>      
+      <select id="track2source" name="track2source" class="tracklist red">
+        <option value="sounds/singing.wav">WAV</option>
+      </select>
+      <br/>
+      <audio id="track2" class="red" controls="controls"></audio>
+    </div>
+
+    <input type="range" id="xrayslider" style="width: 100%; display: none;"/>
+
     <canvas id="visualization"></canvas>
   </div>
   </center>
-  <script src="js/dolby.min.js"></script>
+  <script src="https://s3-us-west-1.amazonaws.com/dolbydeveloper/1.1.0/js/dolby.min.js"></script>
 <script>
 
 (function() {
@@ -46,78 +75,101 @@
   var playerBox = document.getElementById( 'player' );
   var toolsBox = document.getElementById( 'tools' );
 
-  var xrayStart = 1024/4;
+  var track1 = document.getElementById( 'track1' );
+  var track1Src = document.getElementById( 'track1source' );
+
+  var track2 = document.getElementById( 'track2' );
+  var track2Src = document.getElementById( 'track2source' );
+
+  var playAllBtn = document.getElementById( 'playAll' );
+
+  var filterBtn = document.getElementById( 'filter' );
+
+  var xrayBtn = document.getElementById( 'xray' );
+  var xraySliderBtn = document.getElementById( 'xrayslider' );
+
   var xrayRange = 85;
+  var xrayStart = 1024/4;
 
   var xray = 0;
   var filter = 0;  // 0 / 1 to turn filtering off/on
-  var extension = '.mp3'; // we can swap this out with .ogg, .mp4, etc.
 
-  // Create buttons
   // Play All button
-  var btn = document.createElement("button");
-  var t = document.createTextNode("Play All");
-  btn.appendChild(t);
-  btn.onclick = function(){
+  playAllBtn.onclick = function(){
     playAll();
   }
-  toolsBox.appendChild(btn);
 
   // Filter button
-  var btn = document.createElement("button");
-  var t = document.createTextNode("Filter");
-  btn.appendChild(t);
-  btn.onclick = function(){
+  filterBtn.onclick = function(){
     setFilter();
   }
-  toolsBox.appendChild(btn);
 
   // Xray button
-  var btn = document.createElement("button");
-  var t = document.createTextNode("Xray");
-  btn.appendChild(t);
-  btn.onclick = function(){
+  xrayBtn.onclick = function(){
     setXray();
   }
-  toolsBox.appendChild(btn);
+
+  if (track1.canPlayType('audio/mpeg')) {
+    var option = document.createElement("option");
+    option.text = "MP3";
+    option.value = 'sounds/singing.mp3';
+    option.selected = true;
+    track1Src.add(option);
+    var option = document.createElement("option");
+    option.text = "MP3";
+    option.value = 'sounds/singing.mp3';
+    option.selected = true;
+    track2Src.add(option);        
+  }
+
+  if (track1.canPlayType('audio/ogg')) {
+    var option = document.createElement("option");
+    option.text = "OGG";
+    option.value = 'sounds/singing.ogg';
+    track1Src.add(option);
+    var option = document.createElement("option");
+    option.text = "OGG";
+    option.value = 'sounds/singing.ogg';
+    track2Src.add(option);        
+  }
+
+  if (track1.canPlayType('audio/mp4')) {
+    var option = document.createElement("option");
+    option.text = "AAC";
+    option.value = 'sounds/singing.aac';
+    track1Src.add(option);
+    var option = document.createElement("option");
+    option.text = "AAC";
+    option.selected = true;
+    option.value = 'sounds/singing.aac';
+    track2Src.add(option);        
+  }
 
   // Dolby Digital Plus Check
   if( ddplus === true ) {
-    extension = '_Dolby.mp4';
+    
+    var option = document.createElement("option");
+    option.text = "Dolby Digital Plus";
+    option.value = 'sounds/singing_Dolby.mp4';
+    option.selected = true;
+    track1Src.add(option);
+
+    var option = document.createElement("option");
+    option.text = "Dolby Digital Plus";
+    option.value = 'sounds/singing_Dolby.mp4';
+    track2Src.add(option);
+
   }
-  // Audio
-  var track1 = new Audio();
-  track1.src = 'sounds/singing' + extension;
-  track1.controls = true;
-  track1.autoplay = false;
-  track1.onplay = function(){  
+
+  // Setup track 1
+  track1Src.onchange = function(){
+    refreshTracks();
+  }
+  track1.src = track1Src.value;
+  track1.load();
+  track1.onplay = function(){ 
     draw();
   }
-  track1.onloadeddata = function(){
-    console.log( 'loaded track1' );
-  }
-
-  track1.style.border = '5px solid rgb(50,255,50)';
-  track1.style.backgroundColor = 'rgb(50,255,50)';
-
-  var dv = document.createElement("div");
-  var ele = document.createElement("input");
-  ele.id = 'soundtrack1';
-  ele.type = 'text';
-  ele.onkeydown = function(){
-    if (event.keyCode == 13)
-      //loadSoundtracks();
-    this.style.width = ((this.value.length + 1) * 6 ) + 'px';    
-  }
-  ele.size = 65;
-  ele.value = track1.src;
-  ele.style.width = ((ele.value.length + 1) * 6 ) + 'px';  
-  ele.style.border = '5px solid rgb(50,255,50)';
-
-  dv.appendChild( ele );
-  dv.appendChild( track1 );
-
-  playerBox.appendChild( dv );
 
   var analyser1 = audioCtx.createAnalyser();
   var source1 = audioCtx.createMediaElementSource( track1 )
@@ -128,37 +180,15 @@
   var bufferLength1 = analyser1.frequencyBinCount;
   var dataArray1 = new Uint8Array(bufferLength1);
 
-  var track2 = new Audio();
-  track2.src = 'sounds/singing.mp3';
-  track2.controls = true;
-  track2.autoplay = false;
-  track2.onplay = function(){    
+  // setup track 2
+  track2Src.onchange = function(){
+    refreshTracks();
+  }  
+  track2.src = track2Src.value;
+  track2.load();
+  track2.onplay = function(){ 
     draw();
   }
-  track2.onloadeddata = function(){
-    console.log( 'loaded track2' );
-  }  
-  track2.style.border = '5px solid rgb(255,50,50)';
-  track2.style.backgroundColor = 'rgb(255,50,50)';
-
-
-  dv = document.createElement("div"); 
-  var ele = document.createElement("input");
-  ele.id = 'soundtrack2';
-  ele.type = 'text';
-  ele.onkeydown = function(){
-    if (event.keyCode == 13)
-      //loadSoundtracks();
-    this.style.width = ((this.value.length + 1) * 6 ) + 'px';    
-  }  
-  ele.size = 65;
-  ele.value = track2.src;
-  ele.style.width = ((ele.value.length + 1) * 6 ) + 'px';  
-  ele.style.border = '5px solid rgb(255,50,50)';  
-  dv.appendChild( ele );
-  dv.appendChild( track2 );
-  playerBox.appendChild( dv );
-
 
   var analyser2 = audioCtx.createAnalyser();
   var source2 = audioCtx.createMediaElementSource( track2 )
@@ -170,19 +200,14 @@
   var dataArray2 = new Uint8Array(bufferLength2);
 
   // create slider
-  var ele = document.createElement("input");
-  ele.id = 'xray-slider';
-  ele.type = 'range';
-  ele.min = 0;
-  ele.max = 1024/2;
-  ele.step = .1;
-  ele.value = xrayStart;
-  ele.style.display = 'none';
-  ele.style.width = WIDTH + 'px';
-  ele.onchange = function(){
+
+  xraySliderBtn.min = 0;
+  xraySliderBtn.max = 1024/2;
+  xraySliderBtn.step = .1;
+  xraySliderBtn.value = xrayStart;
+  xraySliderBtn.onchange = function(){
     xrayStart = this.value;
   }
-  playerBox.appendChild(ele);
 
 
   // canvas
@@ -248,15 +273,33 @@
 
   };
 
-  function loadSoundtracks(){
-    //track1.src = document.getElementById("soundtrack1").value;
-    //track2.src = document.getElementById("soundtrack2").value;
+  function refreshTracks() {
+
+    alert('hey');
+    pauseAll();
+
+    track1.src = track1Src.value;
+    track2.src = track2Src.value;
+
+    track1.load();
+    track2.load();
+
+    alert( track1.src + "/n" + track2.src );
+
+  }
+
+  function pauseAll() {
+    track1.pause();
+    track2.pause();
   }
 
   function playAll(){
 
     track1.currentTime = 0;
     track2.currentTime = 0; 
+
+    console.log( track1.src );
+    console.log( track2.src );
 
     track1.play();
     track2.play();
@@ -265,9 +308,9 @@
   function setXray(){
     xray ^= true;    
     if( xray ) {
-      document.getElementById('xray-slider').style.display = 'block';
+      document.getElementById('xrayslider').style.display = 'block';
     } else {
-      document.getElementById('xray-slider').style.display = 'none';
+      document.getElementById('xrayslider').style.display = 'none';
     }
   }
   function setFilter(){
