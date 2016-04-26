@@ -92,6 +92,8 @@
   var xray = 0;
   var filter = 0;  // 0 / 1 to turn filtering off/on
 
+  var codec = getQueryVariable( 'codec' );
+
   // Play All button
   playAllBtn.onclick = function(){
     playAll();
@@ -127,6 +129,9 @@
     track1Src.add(option);
     var option = document.createElement("option");
     option.text = "OGG";
+    if( codec == "OGG" ){
+      option.selected = true;
+    }
     option.value = 'sounds/singing.ogg';
     track2Src.add(option);        
   }
@@ -138,7 +143,9 @@
     track1Src.add(option);
     var option = document.createElement("option");
     option.text = "AAC";
-    option.selected = true;
+    if( codec == "AAC" ){
+      option.selected = true;
+    }
     option.value = 'sounds/singing.aac';
     track2Src.add(option);        
   }
@@ -150,6 +157,9 @@
     track1Src.add(option);
     var option = document.createElement("option");
     option.text = "WAV";
+    if( codec == "WAV" ){
+      option.selected = true;
+    }    
     option.value = 'sounds/singing.wav';
     track2Src.add(option);        
   }
@@ -324,6 +334,16 @@
   }
   function setFilter(){
     filter ^= true;
+  }
+
+  function getQueryVariable(variable){
+         var query = window.location.search.substring(1);
+         var vars = query.split("&");
+         for (var i=0;i<vars.length;i++) {
+                 var pair = vars[i].split("=");
+                 if(pair[0] == variable){return pair[1];}
+         }
+         return(false);
   }
 
 })();
