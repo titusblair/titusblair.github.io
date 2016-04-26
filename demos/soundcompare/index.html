@@ -42,14 +42,12 @@
     <div id="player">
     <form>
 
-      <select id="track1source" name="track1source" class="tracklist green"> 
-        <option value="sounds/singing.wav">WAV</option>            
+      <select id="track1source" name="track1source" class="tracklist green">            
       </select>
       <br/>
       <audio id="track1" class="green" controls="controls"></audio>
       <br/>      
       <select id="track2source" name="track2source" class="tracklist red">
-        <option value="sounds/singing.wav">WAV</option>
       </select>
       <br/>
       <audio id="track2" class="red" controls="controls"></audio>
@@ -142,6 +140,17 @@
     option.text = "AAC";
     option.selected = true;
     option.value = 'sounds/singing.aac';
+    track2Src.add(option);        
+  }
+
+  if (track1.canPlayType('audio/wav')) {
+    var option = document.createElement("option");
+    option.text = "WAV";
+    option.value = 'sounds/singing.wav';
+    track1Src.add(option);
+    var option = document.createElement("option");
+    option.text = "WAV";
+    option.value = 'sounds/singing.wav';
     track2Src.add(option);        
   }
 
@@ -283,8 +292,8 @@
     track1.load();
     track2.load();
 
-    console.log( 'Track1: ' + track1.src );
-    console.log( 'Track2: ' + track2.src );
+    console.log( 'Track1 : ' + track1.src );
+    console.log( 'Track2 : ' + track2.src );
 
   }
 
