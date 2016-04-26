@@ -275,7 +275,6 @@
 
   function refreshTracks() {
 
-    alert('hey');
     pauseAll();
 
     track1.src = track1Src.value;
@@ -284,7 +283,8 @@
     track1.load();
     track2.load();
 
-    alert( track1.src + "/n" + track2.src );
+    console.log( 'Track1: ' + track1.src );
+    console.log( 'Track2: ' + track2.src );
 
   }
 
