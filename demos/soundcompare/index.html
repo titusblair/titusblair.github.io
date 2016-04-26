@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html >
+  <head>
+    <meta charset="UTF-8">
+    <title>SoundCompare</title> 
+    <style>
+      body{
+        background-color: #888888;
+      }
+      #tools, #player {
+        padding: 5px;
+      }
+      audio {
+        display: block;
+      }
+      #soundtrack1, #soundtrack2 {
+        font-family: Arial;
+        font-weight: bolder;
+        background-color: white;
+        padding: 8px;
+        display: inline-block;
+        border: 1px solid black;
+      }
+    </style> 
+  </head>
+  <body>
+  <center>
+  <div>
+    <div id="tools"></div>
+    <div id="player"></div>
+    <canvas id="visualization"></canvas>
+  </div>
+  </center>
+  <script src="js/dolby.min.js"></script>
+<script>
+
+(function() {
+
+  var WIDTH = document.body.clientWidth;
+  var HEIGHT = 400;
+
+  var ddplus = Dolby.checkDDPlus();
+
+  var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  
+  var playerBox = document.getElementById( 'player' );
+  var toolsBox = document.getElementById( 'tools' );
+
+  var xrayStart = 1024/4;
+  var xrayRange = 85;
+
+  var xray = 0;
+  var filter = 0;  // 0 / 1 to turn filtering off/on
+  var extension = '.mp3'; // we can swap this out with .ogg, .mp4, etc.
+
+  // Create buttons
+  // Play All button
+  var btn = document.createElement("button");
+  var t = document.createTextNode("Play All");
+  btn.appendChild(t);
+  btn.onclick = function(){
+    playAll();
+  }
+  toolsBox.appendChild(btn);
+
+  // Filter button
+  var btn = document.createElement("button");
+  var t = document.createTextNode("Filter");
+  btn.appendChild(t);
+  btn.onclick = function(){
+    setFilter();
+  }
+  toolsBox.appendChild(btn);
+
+  // Xray button
+  var btn = document.createElement("button");
+  var t = document.createTextNode("Xray");
+  btn.appendChild(t);
+  btn.onclick = function(){
+    setXray();
+  }
+  toolsBox.appendChild(btn);
+
+  // Dolby Digital Plus Check
+  if( ddplus === true ) {
+    extension = '_Dolby.mp4';
+  }
+  // Audio
+  var track1 = new Audio();
+  track1.src = 'sounds/singing' + extension;
+  track1.controls = true;
+  track1.autoplay = false;
+  track1.onplay = function(){  
+    draw();
+  }
+  track1.onloadeddata = function(){
+    console.log( 'loaded track1' );
+  }
+
+  track1.style.border = '5px solid rgb(50,255,50)';
+  track1.style.backgroundColor = 'rgb(50,255,50)';
+
+  var dv = document.createElement("div");
+  var ele = document.createElement("input");
+  ele.id = 'soundtrack1';
+  ele.type = 'text';
+  ele.onkeydown = function(){
+    if (event.keyCode == 13)
+      //loadSoundtracks();
+    this.style.width = ((this.value.length + 1) * 6 ) + 'px';    
+  }
+  ele.size = 65;
+  ele.value = track1.src;
+  ele.style.width = ((ele.value.length + 1) * 6 ) + 'px';  
+  ele.style.border = '5px solid rgb(50,255,50)';
+
+  dv.appendChild( ele );
+  dv.appendChild( track1 );
+
+  playerBox.appendChild( dv );
+
+  var analyser1 = audioCtx.createAnalyser();
+  var source1 = audioCtx.createMediaElementSource( track1 )
+  source1.connect(analyser1)
+  analyser1.connect(audioCtx.destination)
+  analyser1.fftSize = 2048; 
+
+  var bufferLength1 = analyser1.frequencyBinCount;
+  var dataArray1 = new Uint8Array(bufferLength1);
+
+  var track2 = new Audio();
+  track2.src = 'sounds/singing.mp3';
+  track2.controls = true;
+  track2.autoplay = false;
+  track2.onplay = function(){    
+    draw();
+  }
+  track2.onloadeddata = function(){
+    console.log( 'loaded track2' );
+  }  
+  track2.style.border = '5px solid rgb(255,50,50)';
+  track2.style.backgroundColor = 'rgb(255,50,50)';
+
+
+  dv = document.createElement("div"); 
+  var ele = document.createElement("input");
+  ele.id = 'soundtrack2';
+  ele.type = 'text';
+  ele.onkeydown = function(){
+    if (event.keyCode == 13)
+      //loadSoundtracks();
+    this.style.width = ((this.value.length + 1) * 6 ) + 'px';    
+  }  
+  ele.size = 65;
+  ele.value = track2.src;
+  ele.style.width = ((ele.value.length + 1) * 6 ) + 'px';  
+  ele.style.border = '5px solid rgb(255,50,50)';  
+  dv.appendChild( ele );
+  dv.appendChild( track2 );
+  playerBox.appendChild( dv );
+
+
+  var analyser2 = audioCtx.createAnalyser();
+  var source2 = audioCtx.createMediaElementSource( track2 )
+  source2.connect(analyser2)
+  analyser2.connect(audioCtx.destination)
+  analyser2.fftSize = 2048; 
+
+  var bufferLength2 = analyser2.frequencyBinCount;
+  var dataArray2 = new Uint8Array(bufferLength2);
+
+  // create slider
+  var ele = document.createElement("input");
+  ele.id = 'xray-slider';
+  ele.type = 'range';
+  ele.min = 0;
+  ele.max = 1024/2;
+  ele.step = .1;
+  ele.value = xrayStart;
+  ele.style.display = 'none';
+  ele.style.width = WIDTH + 'px';
+  ele.onchange = function(){
+    xrayStart = this.value;
+  }
+  playerBox.appendChild(ele);
+
+
+  // canvas
+  canvas = document.getElementById('visualization');
+  canvas.width = WIDTH;
+  canvas.height = HEIGHT;
+  canvasCtx = canvas.getContext('2d');
+  canvasCtx.fillStyle = 'rgb(0, 0, 0)';
+  canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
+
+  function draw() {
+    drawVisual = requestAnimationFrame(draw);
+
+    analyser1.getByteFrequencyData(dataArray1);
+    analyser2.getByteFrequencyData(dataArray2);
+
+    canvasCtx.fillStyle = 'rgb(0, 0, 0)';
+    canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
+
+    var barWidth = (WIDTH / bufferLength1) * 1;
+    var barHeight1;
+    var barHeight2;
+
+    var x = 0;
+    var color = '';
+
+    for(var i = 0; i < bufferLength1; i++) {
+
+      barHeight1 = dataArray1[i];
+      barHeight2 = dataArray2[i];
+
+      color = 'rgb(50,255,50)';
+      if( xray && i >= xrayStart && i <= parseInt(xrayStart) + parseInt(xrayRange) ) {
+        color = 'rgba(255,255,255,.5)';
+      }
+
+      canvasCtx.strokeStyle = color;
+      canvasCtx.strokeRect( x , ( HEIGHT - barHeight1 )/2 , barWidth , barHeight1 );      
+
+      color = 'rgb(255,50,50)';
+      if( xray && i >= xrayStart && i <= parseInt(xrayStart) + parseInt(xrayRange) ) {
+        color = 'rgba(255,255,255,.5)';
+      }
+      canvasCtx.strokeStyle = color;
+      canvasCtx.strokeRect( x , ( HEIGHT - barHeight2 )/2 , barWidth , barHeight2 );
+
+      barDiffHeight = Math.abs( barHeight2 - barHeight1 );
+
+      if( filter === 1 
+          && !track1.paused 
+          && !track2.paused 
+           ) {
+
+        color = 'rgba(255,255,255,.25)';
+        canvasCtx.fillStyle = color;
+        canvasCtx.fillRect( x , ( HEIGHT - barDiffHeight ) , barWidth , barDiffHeight );
+
+      }
+
+      x += barWidth + 1;
+
+    }
+
+  };
+
+  function loadSoundtracks(){
+    //track1.src = document.getElementById("soundtrack1").value;
+    //track2.src = document.getElementById("soundtrack2").value;
+  }
+
+  function playAll(){
+
+    track1.currentTime = 0;
+    track2.currentTime = 0; 
+
+    track1.play();
+    track2.play();
+  }
+
+  function setXray(){
+    xray ^= true;    
+    if( xray ) {
+      document.getElementById('xray-slider').style.display = 'block';
+    } else {
+      document.getElementById('xray-slider').style.display = 'none';
+    }
+  }
+  function setFilter(){
+    filter ^= true;
+  }
+
+})();
+</script>
+
+</script>
+</body>
+</html>
+
+<!-- 
+TOPICS
+
+fftSize
+=======
+The fftSize property of the AnalyserNode interface is an unsigned long value representing the size of the FFT (Fast Fourier Transform) to be used to determine the frequency domain.
+
+The fftSize property's value must be a non-zero power of 2 in a range from 32 to 2048; its default value is 2048. 
+
+
+
+-->
+
